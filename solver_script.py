@@ -1,6 +1,7 @@
 import pyautogui
 import auto_script as auto
 import variables_script as var
+import possible_script as fill
 
 board = [[6, 9, 0, 1, 0, 0, 3, 0, 0],
 [0, 0, 0, 0, 7, 0, 0, 0, 0],
@@ -43,23 +44,31 @@ def update_possible(possible, i, j, num):
                 possible[start_row + m][start_col + n].remove(num)
 
 def lone_possible(possible, i, j, num):
+    p1, p2, p3 = True, True, True
+
     for k in range(9):
         if k != j and num in possible[i][k]:
-            return False
+            p1 = False
         if k != i and num in possible[k][j]:
-            return False
+            p2 = False
+
+    if p1 or p2:
+        return True
 
     start_row, start_col = 3 * (i // 3), 3 * (j // 3)
     for m in range(3):
         for n in range(3):
             if (m != i or n != j) and num in possible[start_row + m][start_col + n]:
-                return False
+                p3 = False
+                return p1 or p2
             
-    return True
+    return p1 or p2 or p3
 
 def set_cell(board, possible, i, j, num):
     board[i][j] = num
     update_possible(possible, i, j, num)
+
+    possible[i][j] = []
 
     pyautogui.moveTo(var.get_cords(j) + (var.cell_size // 2) + var.left_start, var.get_cords(i) + (var.cell_size // 2) + var.top_start)
     pyautogui.click()
@@ -67,15 +76,15 @@ def set_cell(board, possible, i, j, num):
     pyautogui.write(str(num))
 
 def solve(board):
-    possible = [[[] for _ in range(9)] for _ in range(9)]  # Use lists instead of integers
+    possibilities = [[[] for _ in range(9)] for _ in range(9)]
 
     for i in range(9):
         for j in range(9):
             if board[i][j] == 0:
-                possible[i][j] = [num for num in range(1, 10) if is_valid(board, i, j, num)]
+                possibilities[i][j] = [num for num in range(1, 10) if is_valid(board, i, j, num)]
 
-                if len(possible[i][j]) == 1:
-                    set_cell(board, possible, i, j, possible[i][j][0])
+                if len(possibilities[i][j]) == 1:
+                    set_cell(board, possibilities, i, j, possibilities[i][j][0])
 
                 
     while True:
@@ -84,16 +93,21 @@ def solve(board):
         for i in range(9):
             for j in range(9):
                 if board[i][j] == 0:
-                    if len(possible[i][j]) == 1:
-                        set_cell(board, possible, i, j, possible[i][j][0])
+                    if len(possibilities[i][j]) == 1:
+                        set_cell(board, possibilities, i, j, possibilities[i][j][0])
                         updated = True
 
-                    for num in possible[i][j]:
-                        if lone_possible(possible, i, j, num):
-                            set_cell(board, possible, i, j, num)
+                    for num in possibilities[i][j]:
+                        if lone_possible(possibilities, i, j, num):
+                            set_cell(board, possibilities, i, j, num)
                             updated = True
 
         if not updated:
             break
+
+    print(possibilities)
+
+    if fill.has_empty(board):
+        fill.fill_possible(possibilities)
 
     return board  # Returns updated board
