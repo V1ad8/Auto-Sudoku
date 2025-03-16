@@ -56,3 +56,33 @@ def extract_digits_from_board(board_img):
                 # cv2.imshow("Cell", thresh)
                 # cv2.waitKey(0)
     return board
+
+
+def show_matrix(matrix, window_name="Matrix Display", cell_size=50):
+    rows, cols = len(matrix), len(matrix[0])
+    img_size = (cols * cell_size, rows * cell_size, 3)  # Create an image of size (width, height, channels)
+
+    # Create a white background image
+    img = np.ones(img_size, dtype=np.uint8) * 255
+
+    # Draw grid
+    for i in range(rows + 1):
+        cv2.line(img, (0, i * cell_size), (cols * cell_size, i * cell_size), (0, 0, 0), 2)
+    for j in range(cols + 1):
+        cv2.line(img, (j * cell_size, 0), (j * cell_size, rows * cell_size), (0, 0, 0), 2)
+
+    # Put numbers in the cells
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    for i in range(rows):
+        for j in range(cols):
+            if matrix[i][j] != 0:  # Don't draw zeroes (empty cells)
+                text = str(matrix[i][j])
+                text_size = cv2.getTextSize(text, font, 1, 2)[0]
+                text_x = j * cell_size + (cell_size - text_size[0]) // 2
+                text_y = i * cell_size + (cell_size + text_size[1]) // 2
+                cv2.putText(img, text, (text_x, text_y), font, 1, (0, 0, 0), 2)
+
+    # Show the image
+    cv2.imshow(window_name, img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

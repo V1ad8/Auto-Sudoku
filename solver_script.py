@@ -2,7 +2,6 @@ import keyboard
 import pyautogui
 import auto_script as auto
 import variables_script as var
-import possible_script as fill
 
 board = auto.board
 possibilities = [[[] for _ in range(9)] for _ in range(9)]
@@ -10,6 +9,9 @@ possibilities = [[[] for _ in range(9)] for _ in range(9)]
 def print_board():
     for row in board:
         print(row)
+
+def same_cell(i1, j1, i2, j2):
+    return i1 // 3 == i2 // 3 and j1 // 3 == j2 // 3
 
 def is_valid(row, col, num):
     for i in range(9):
@@ -24,30 +26,47 @@ def is_valid(row, col, num):
 
     return True
 
-def set_possible(i, j, num1, num2 = -1, i_t = -1, j_t = -1):
-    if num2 == -1:
-        update_possible(i, j, num1)
-        possibilities[i][j] = []
-    else:
-        update_possible(i, j, num1, i_t, j_t)
-        update_possible(i, j, num2, i_t, j_t)
-        possibilities[i][j] = [num1, num2]
-        possibilities[i_t][j_t] = [num1, num2]
-
-def update_possible(i, j, num, except_i = -1, except_j = -1):
+def update_possible(i, j, num):
     for k in range(9):
-        if k != j and k != except_j and num in possibilities[i][k]:
+        if k != j and num in possibilities[i][k]:
             possibilities[i][k].remove(num)
-        if k != i and k != except_i and num in possibilities[k][j]:
+        if k != i and num in possibilities[k][j]:
             possibilities[k][j].remove(num)
 
     start_row, start_col = 3 * (i // 3), 3 * (j // 3)
     for m in range(3):
         for n in range(3):
             if ((start_row + m != i or start_col + n != j)
-                    and (start_row + m != except_i or start_col + n != except_j)
                     and num in possibilities[start_row + m][start_col + n]):
                 possibilities[start_row + m][start_col + n].remove(num)
+
+def update_twin(i1, j1, i2, j2, num1, num2, type_t):
+    possibilities[i1][j1] = [num1, num2]
+    possibilities[i2][j2] = [num1, num2]
+
+    if type_t == 1:
+        for k in range(9):
+            if k != j1 and k != j2 and num1 in possibilities[i1][k]:
+                possibilities[i1][k].remove(num1)
+            if k != j1 and k != j2 and num2 in possibilities[i1][k]:
+                possibilities[i1][k].remove(num2)
+
+    if type_t == 2:
+        for k in range(9):
+            if k != i1 and k != i2 and num1 in possibilities[k][j1]:
+                possibilities[k][j1].remove(num1)
+            if k != i1 and k != i2 and num2 in possibilities[k][j1]:
+                possibilities[k][j1].remove(num2)
+
+    if same_cell(i1, j1, i2, j2):
+        start_row, start_col = 3 * (i1 // 3), 3 * (j1 // 3)
+        for m in range(3):
+            for n in range(3):
+                if (start_row + m != i1 or start_col + n != j1) and (start_row + m != i2 or start_col + n != j2):
+                    if num1 in possibilities[start_row + m][start_col + n]:
+                        possibilities[start_row + m][start_col + n].remove(num1)
+                    if num2 in possibilities[start_row + m][start_col + n]:
+                        possibilities[start_row + m][start_col + n].remove(num2)
 
 def find_twin(i, j, num1, num2):
     s1, s2, s3 = True, True, True
@@ -92,28 +111,35 @@ def find_twin(i, j, num1, num2):
                 j_t = start_col + n
                 f3 = True
 
-    if (f1 and s1) or (f2 and s2) or (f3 and s3):
-        return i_t, j_t
+    type_t = 0
+    if f1 and s1:
+        type_t = 1
 
-    return -1, -1
+    if f2 and s2:
+        type_t = 2
+
+    if (f1 and s1) or (f2 and s2) or (f3 and s3):
+        return i_t, j_t, type_t
+
+    return -1, -1, -1
 
 def find_perfect_twin(i, j, num1, num2):
     if len(possibilities[i][j]) != 2:
-        return -1, -1
+        return -1, -1, -1
 
     for k in range(9):
         if k != j and num1 in possibilities[i][k] and num2 in possibilities[i][k] and len(possibilities[i][k]) == 2:
-            return i, k
+            return i, k, 1
         if k != i and num1 in possibilities[k][j] and num2 in possibilities[k][j] and len(possibilities[k][j]) == 2:
-            return k, j
+            return k, j, 2
 
     start_row, start_col = 3 * (i // 3), 3 * (j // 3)
     for m in range(3):
         for n in range(3):
             if (start_row + m != i or start_col + n != j) and num1 in possibilities[start_row + m][start_col + n] and num2 in possibilities[start_row + m][start_col + n] and len(possibilities[start_row + m][start_col + n]) == 2:
-                return start_row + m, start_col + n
+                return start_row + m, start_col + n, 0
 
-    return -1, -1
+    return -1, -1, -1
 
 def lone_possible(i, j, num):
     p1, p2, p3 = True, True, True
@@ -138,7 +164,8 @@ def lone_possible(i, j, num):
 
 def set_cell(i, j, num):
     board[i][j] = num
-    set_possible(i, j, num)
+    update_possible(i, j, num)
+    possibilities[i][j] = []
 
     pyautogui.moveTo(var.get_cords(j) + (var.cell_size // 2) + var.left_start, var.get_cords(i) + (var.cell_size // 2) + var.top_start)
     pyautogui.click()
@@ -152,17 +179,17 @@ def find_and_update_twins():
                 for num1 in possibilities[i][j]:
                     for num2 in possibilities[i][j]:
                         if num1 < num2:
-                            i_t, j_t = find_perfect_twin(i, j, num1, num2)
+                            i_t, j_t, t_t = find_perfect_twin(i, j, num1, num2)
                             if i_t != -1 and (i < i_t or (i == i_t and j < j_t)):
-                                # print(i, j, "and", i_t, j_t, ":", num1, num2)
-                                set_possible(i, j, num1, num2, i_t, j_t)
+                                # print("perf: ", i, j, "and", i_t, j_t, ":", num1, num2, t_t)
+                                update_twin(i, j, i_t, j_t, num1, num2, t_t)
 
-                            i_t, j_t = find_twin(i, j, num1, num2)
+                            i_t, j_t, t_t = find_twin(i, j, num1, num2)
                             if i_t != -1 and (i < i_t or (i == i_t and j < j_t)):
-                                # print(i, j, "and", i_t, j_t, ":", num1, num2)
-                                set_possible(i, j, num1, num2, i_t, j_t)
+                                print(i, j, "and", i_t, j_t, ":", num1, num2, t_t)
+                                update_twin(i, j, i_t, j_t, num1, num2, t_t)
 
-def solve():
+def initialise_possible():
     for i in range(9):
         for j in range(9):
             if board[i][j] == 0:
@@ -171,6 +198,7 @@ def solve():
                 if len(possibilities[i][j]) == 1:
                     set_cell(i, j, possibilities[i][j][0])
 
+def solve():
     while True:
         updated = False
 
@@ -194,8 +222,5 @@ def solve():
             break
 
     find_and_update_twins()
-
-    # if fill.has_empty(board):
-    #     fill.fill_possible(possibilities)
 
     return board  # Returns updated board
