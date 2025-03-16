@@ -5,6 +5,9 @@ import pytesseract
 pytesseract.pytesseract.tesseract_cmd = r"C:\Users\2004u\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
 import variables_script as var
 
+KILL_SWITCH = 'q'
+board = [[0 for _ in range(9)] for _ in range(9)]
+
 def capture_screen():
     width = 9 * var.cell_size + 4 * var.big_border + 6 * var.small_border
 
@@ -37,7 +40,6 @@ def match_digit(cell, templates):
 
 def extract_digits_from_board(board_img):
     templates = load_templates()
-    board = [[0 for _ in range(9)] for _ in range(9)]
 
     for i in range(9):
         for j in range(9):
